@@ -3,4 +3,6 @@
 **/.idea
 **/target
 
+**/02_resolved
+
 external.rc
