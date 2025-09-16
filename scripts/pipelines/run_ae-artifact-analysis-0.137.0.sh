@@ -96,10 +96,11 @@ resolved_inventory_to_cyclonedx() {
 main() {
     source_preload
     set_global_variables
-    # Logger can be used starting here
+
     SCRIPT_NAME=$(basename "$(readlink -f "$0")")
     LOG_FILE="${LOG_DIR}/${SCRIPT_NAME%.sh}.log"
     logger_init "CONFIG" "$LOG_FILE" true
+    # Logger can be used starting here
 
     resolve
     resolved_inventory_to_cyclonedx
