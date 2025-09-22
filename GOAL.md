@@ -1,7 +1,7 @@
 # List of Goals
 
 - [ ] Complete the pipeline already provided with the following steps
-  - [ ] resolve & resolved cyclonedx sbom
+  - [X] resolve & resolved cyclonedx sbom
   - [ ] enrich & enriched cyclonedx sbom
   - [ ] scan & scanned cyclonedx sbom
   - [ ] vulnerability report

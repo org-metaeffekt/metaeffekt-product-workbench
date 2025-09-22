@@ -26,16 +26,76 @@ set_global_variables() {
   LOG_DIR="$PRODUCT_WORKBENCH_DIR/.logs"
   CONFIGS_DIR="$PRODUCT_WORKBENCH_DIR/configs"
   KONTINUUM_PROCESSORS_DIR="$EXTERNAL_KONTINUUM_DIR/processors"
-  AEAA_0_137_0_DIR="$WORKSPACE_001_DIR/ae-artifact-analysis-0.137.0"
+  AEAA_0_147_1_DIR="$WORKSPACE_001_DIR/ae-artifact-analysis-0.147.1"
 
 }
 
+copy_dependencies() {
+  local param_group_id="com.metaeffekt.artifact.analysis"
+  local param_artifact_id="ae-artifact-analysis"
+  local param_version="0.147.1"
+  local param_exclude_transitive_enabled="false"
+  local output_dependencies_dir="$AEAA_0_147_1_DIR/01_prepared"
+
+  CMD=(mvn -f "$KONTINUUM_PROCESSORS_DIR/prepare/prepare_copy-pom-dependencies.xml" process-resources)
+  CMD+=("-Dparam.group.id=$param_group_id")
+  CMD+=("-Dparam.artifact.id=$param_artifact_id")
+  CMD+=("-Dparam.version=$param_version")
+  CMD+=("-Dparam.exclude.transitive.enabled=$param_exclude_transitive_enabled")
+  CMD+=("-Doutput.dependencies.dir=$output_dependencies_dir")
+
+
+    log_info "Running copy dependencies step."
+
+    log_config "" "output.dependencies.dir=$output_dependencies_dir"
+
+    log_mvn "${CMD[*]}"
+
+    if "${CMD[@]}" 2>&1 | while IFS= read -r line; do log_mvn "$line"; done; then
+        log_info "Successfully ran copy dependencies step."
+    else
+        log_error "Failed to run copy dependencies step because the maven execution was unsuccessful"
+        return 1
+    fi
+}
+
+scan_dependencies() {
+
+  local input_reference_inventory_dir="$EXTERNAL_WORKBENCH_DIR/inventories/example-reference-inventory"
+  local input_extracts_dir="$AEAA_0_147_1_DIR/01_prepared"
+  local output_scan_dir="$AEAA_0_147_1_DIR/02_extracted/scanned"
+  local output_inventory_file="$AEAA_0_147_1_DIR/02_extracted/ae-artifact-analysis-0.147.1-extracted.xlsx"
+
+  CMD=(mvn -f "$KONTINUUM_PROCESSORS_DIR/extract/extract_scan-directory.xml" process-resources)
+  CMD+=("-Dinput.reference.inventory.dir=$input_reference_inventory_dir")
+  CMD+=("-Dinput.extract.dir=$input_extracts_dir")
+  CMD+=("-Doutput.scan.dir=$output_scan_dir")
+  CMD+=("-Doutput.inventory.file=$output_inventory_file")
+
+
+  log_info "Running scan dependencies step."
+
+  log_config "input.reference.inventory.dir=$input_reference_inventory_dir
+              input.extract.dir=$input_extracts_dir" "
+              output.scan.dir=$output_scan_dir
+              output.inventory.file=$output_inventory_file"
+
+  log_mvn "${CMD[*]}"
+
+  if "${CMD[@]}" 2>&1 | while IFS= read -r line; do log_mvn "$line"; done; then
+      log_info "Successfully ran scan dependencies step."
+  else
+      log_error "Failed to run scan dependencies step because the maven execution was unsuccessful"
+      return 1
+  fi
+}
+
 resolve() {
-  local input_inventory_file="$AEAA_0_137_0_DIR/01_analyzed/ae-artifact-analysis-0.137.0-analyzed.xlsx"
+  local input_inventory_file="$AEAA_0_147_1_DIR/02_extracted/ae-artifact-analysis-0.147.1-extracted.xlsx"
   local input_artifact_resolver_config_file="$CONFIGS_DIR/resolver/artifact-resolver-config.yaml"
   local input_artifact_resolver_proxy_file="$CONFIGS_DIR/resolver/artifact-resolver-proxy.yaml"
-  local output_inventory_file="$AEAA_0_137_0_DIR/02_resolved/ae-artifact-analysis-0.137.0-resolved.xlsx"
-  local env_maven_index_dir="$AEAA_0_137_0_DIR/02_resolved/maven-index"
+  local output_inventory_file="$AEAA_0_147_1_DIR/04_resolved/ae-artifact-analysis-0.147.1-resolved.xlsx"
+  local env_maven_index_dir="$SELF_DIR/.maven-index"
 
   CMD=(mvn -f "$KONTINUUM_PROCESSORS_DIR/analyze/analyze_resolve-inventory.xml" process-resources)
   CMD+=("-Dinput.inventory.file=$input_inventory_file")
@@ -62,12 +122,12 @@ resolve() {
 }
 
 resolved_inventory_to_cyclonedx() {
-  local input_inventory_file="$AEAA_0_137_0_DIR/02_resolved/ae-artifact-analysis-0.137.0-resolved.xlsx"
+  local input_inventory_file="$AEAA_0_147_1_DIR/04_resolved/ae-artifact-analysis-0.147.1-resolved.xlsx"
   local param_document_name="ae-artifact-analysis resolved"
   local param_document_description="An SBOM of the metaeffekt artifact-analysis project, produced after the extracted artifacts were resolved."
   local param_document_organization="{metaeffekt} GmbH"
   local param_document_organization_url="https://metaeffekt.com"
-  local output_bom_file="$AEAA_0_137_0_DIR/02_resolved/ae-artifact-analysis-0.137.0-resolved-cyclonedx.json"
+  local output_bom_file="$AEAA_0_147_1_DIR/04_resolved/ae-artifact-analysis-0.147.1-resolved-cyclonedx.json"
   local output_format="JSON"
 
   CMD=(mvn -f "$KONTINUUM_PROCESSORS_DIR/convert/convert_inventory-to-cyclonedx.xml" process-resources)
@@ -99,9 +159,11 @@ main() {
 
     SCRIPT_NAME=$(basename "$(readlink -f "$0")")
     LOG_FILE="${LOG_DIR}/${SCRIPT_NAME%.sh}.log"
-    logger_init "CONFIG" "$LOG_FILE" true
+    logger_init "ALL" "$LOG_FILE" true
     # Logger can be used starting here
 
+    copy_dependencies
+    scan_dependencies
     resolve
     resolved_inventory_to_cyclonedx
 }
