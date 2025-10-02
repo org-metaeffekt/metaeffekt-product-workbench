@@ -3,10 +3,7 @@
 **/.idea
 **/target
 
-**/01_prepared
-**/02_extracted
-**/03_aggregated
-**/04_resolved
+/workspace-[0-9][0-9][0-9]/**/[0-9][0-9]_*
 
 external.rc
 .maven-index
