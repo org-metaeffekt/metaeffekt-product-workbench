@@ -1,0 +1,30 @@
+{
+  "insignificantThreshold": 7.0,
+  "includeScoreThreshold": -1.0,
+  "vulnerabilityStatusDisplayMapperName": "unmodified",
+  "priorityScoreConfiguration": {
+    "vulnerabilityStatus": {
+      "set": {
+        "void": 0.0,
+        "not applicable": 0.0
+      },
+      "add":{
+        "applicable": 0.5
+      }
+    },
+    "eol": {
+      "noExtendedSupport": {
+        "supportValid": 0.0,
+        "supportEndingSoon": 1.0,
+        "supportExpired": 1.5
+      },
+      "extendedSupport": {
+        "supportValid": 0.0,
+        "supportEndingSoon": 0.5,
+        "extendedSupportValid": 1.0,
+        "extendedSupportEndingSoon": 1.2,
+        "extendedSupportExpired": 1.5
+      }
+    }
+  }
+}

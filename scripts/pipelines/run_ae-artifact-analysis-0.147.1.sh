@@ -27,6 +27,13 @@ set_global_variables() {
   CONFIGS_DIR="$PRODUCT_WORKBENCH_DIR/configs"
   KONTINUUM_PROCESSORS_DIR="$EXTERNAL_KONTINUUM_DIR/processors"
   AEAA_0_147_1_DIR="$WORKSPACE_001_DIR/ae-artifact-analysis-0.147.1"
+  readonly CURATED_DIR="$AEAA_0_147_1_DIR/03_curated"
+  readonly RESOLVED_DIR="$AEAA_0_147_1_DIR/04_resolved"
+  readonly ADVISED_DIR="$AEAA_0_147_1_DIR/05_advised"
+  readonly TMP_DIR="$AEAA_0_147_1_DIR/99_tmp"
+
+  ENV_REFERENCE_INVENTORY_DIR="$PRODUCT_WORKBENCH_DIR/inventories/example-reference-inventory/inventory"
+  ENV_SECURITY_POLICY_FILE="$PRODUCT_WORKBENCH_DIR/policies/security-policy.json"
 
 }
 
@@ -153,6 +160,98 @@ export_cyclonedx() {
   fi
 }
 
+
+enrich_inventory_with_reference() {
+  log_info "Running processor enrich_inventory_with_reference process."
+
+  ANALYZED_INVENTORY_FILE="$RESOLVED_DIR/ae-artifact-analysis-0.147.1-resolved.xlsx"
+  CURATED_INVENTORY_DIR="$CURATED_DIR/ae-artifact-analysis-0.147.1"
+  CURATED_INVENTORY_PATH="ae-artifact-analysis-0.147.1-inventory.xlsx"
+
+  CMD=(mvn -f "$KONTINUUM_PROCESSORS_DIR/advise/advise_enrich-with-reference.xml" process-resources)
+  CMD+=("-Dinput.inventory.file=$ANALYZED_INVENTORY_FILE")
+  CMD+=("-Dinput.reference.inventory.dir=$ENV_REFERENCE_INVENTORY_DIR")
+  CMD+=("-Doutput.inventory.dir=$CURATED_INVENTORY_DIR")
+  CMD+=("-Doutput.inventory.path=$CURATED_INVENTORY_PATH")
+
+  log_config "input.inventory.file=$ANALYZED_INVENTORY_FILE
+              input.reference.inventory.dir=$ENV_REFERENCE_INVENTORY_DIR" "
+              output.inventory.dir=$CURATED_INVENTORY_DIR
+              output.inventory.path=$CURATED_INVENTORY_PATH"
+
+
+  log_mvn "${CMD[*]}"
+
+  if "${CMD[@]}" 2>&1 | while IFS= read -r line; do log_mvn "$line"; done; then
+      log_info "Successfully ran enrich_inventory_with_reference"
+  else
+      log_error "Failed to run enrich_inventory_with_reference because the maven execution was unsuccessful"
+      return 1
+  fi
+}
+
+advise() {
+  log_info "Running processor enrich_inventory process."
+
+  ASSESSMENT_DIR="$PRODUCT_WORKBENCH_DIR/assessments/example-001"
+  CONTEXT_DIR="$PRODUCT_WORKBENCH_DIR/contexts/example-001"
+  CORRELATION_DIR="$PRODUCT_WORKBENCH_DIR/correlations/shared"
+  ADVISED_INVENTORY_FILE="$ADVISED_DIR/ae-artifact-analysis-0.147.1-advised.xlsx"
+  PROCESSOR_TMP_DIR="$TMP_DIR/processor"
+
+  CMD=(mvn -f "$KONTINUUM_PROCESSORS_DIR/advise/advise_enrich-inventory.xml" process-resources)
+  CMD+=("-Dinput.inventory.file=$CURATED_INVENTORY_DIR/$CURATED_INVENTORY_PATH")
+  CMD+=("-Dinput.security.policy.file=$ENV_SECURITY_POLICY_FILE")
+
+  # these are params
+  CMD+=("-Dinput.assessment.dir=$ASSESSMENT_DIR")
+  CMD+=("-Dinput.correlation.dir=$CORRELATION_DIR")
+  CMD+=("-Dinput.context.dir=$CONTEXT_DIR")
+
+  # these are envs
+  CMD+=("-Doutput.inventory.file=$ADVISED_INVENTORY_FILE")
+  CMD+=("-Doutput.tmp.dir=$PROCESSOR_TMP_DIR")
+  CMD+=("-Denv.vulnerability.mirror.dir=$EXTERNAL_VULNERABILITY_MIRROR_DIR")
+
+  log_config "input.inventory.file=$CURATED_INVENTORY_DIR/$CURATED_INVENTORY_PATH
+              input.security.policy.file=$ENV_SECURITY_POLICY_FILE" "
+              output.inventory.file=$ADVISED_INVENTORY_FILE
+              output.tmp.dir=$PROCESSOR_TMP_DIR"
+
+  log_mvn "${CMD[*]}"
+
+  if "${CMD[@]}" 2>&1 | while IFS= read -r line; do log_mvn "$line"; done; then
+      log_info "Successfully ran enrich_inventory"
+  else
+      log_error "Failed to run enrich_inventory because the maven execution was unsuccessful"
+      return 1
+  fi
+}
+
+generate_vulnerability_assessment_dashboard() {
+  log_info "Running processor generate_vulnerability_assessment_dashboard process."
+
+  OUTPUT_DASHBOARD_FILE="$ADVISED_DIR/dashboards/ae-artifact-analysis-0.147.1-dashboard.html"
+  CMD=(mvn -f "$KONTINUUM_PROCESSORS_DIR/advise/advise_create-dashboard.xml" process-resources)
+  CMD+=("-Dinput.inventory.file=$ADVISED_INVENTORY_FILE")
+  CMD+=("-Dinput.security.policy.file=$ENV_SECURITY_POLICY_FILE")
+  CMD+=("-Doutput.dashboard.file=$OUTPUT_DASHBOARD_FILE")
+  CMD+=("-Denv.vulnerability.mirror.dir=$EXTERNAL_VULNERABILITY_MIRROR_DIR")
+
+  log_config "input.inventory.file=$ADVISED_INVENTORY_FILE
+              input.security.policy.file=$ENV_SECURITY_POLICY_FILE" "
+              output.dashboard.file=$OUTPUT_DASHBOARD_FILE"
+
+  log_mvn "${CMD[*]}"
+
+  if "${CMD[@]}" 2>&1 | while IFS= read -r line; do log_mvn "$line"; done; then
+      log_info "Successfully ran generate_vulnerability_assessment_dashboard"
+  else
+      log_error "Failed to run generate_vulnerability_assessment_dashboard because the maven execution was unsuccessful"
+      return 1
+  fi
+}
+
 main() {
     source_preload
     set_global_variables
@@ -166,6 +265,9 @@ main() {
     extract
     resolve
     export_cyclonedx
+    enrich_inventory_with_reference
+    advise
+    generate_vulnerability_assessment_dashboard
 }
 
 main "$@"
