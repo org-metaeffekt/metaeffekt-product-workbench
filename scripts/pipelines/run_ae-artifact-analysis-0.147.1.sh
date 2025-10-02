@@ -30,7 +30,7 @@ set_global_variables() {
 
 }
 
-copy_dependencies() {
+prepare() {
   local param_group_id="com.metaeffekt.artifact.analysis"
   local param_artifact_id="ae-artifact-analysis"
   local param_version="0.147.1"
@@ -59,7 +59,7 @@ copy_dependencies() {
     fi
 }
 
-scan_dependencies() {
+extract() {
 
   local input_reference_inventory_dir="$EXTERNAL_WORKBENCH_DIR/inventories/example-reference-inventory"
   local input_extracts_dir="$AEAA_0_147_1_DIR/01_prepared"
@@ -121,7 +121,7 @@ resolve() {
   fi
 }
 
-resolved_inventory_to_cyclonedx() {
+export_cyclonedx() {
   local input_inventory_file="$AEAA_0_147_1_DIR/04_resolved/ae-artifact-analysis-0.147.1-resolved.xlsx"
   local param_document_name="ae-artifact-analysis resolved"
   local param_document_description="An SBOM of the metaeffekt artifact-analysis project, produced after the extracted artifacts were resolved."
@@ -162,10 +162,10 @@ main() {
     logger_init "ALL" "$LOG_FILE" true
     # Logger can be used starting here
 
-    copy_dependencies
-    scan_dependencies
+    prepare
+    extract
     resolve
-    resolved_inventory_to_cyclonedx
+    export_cyclonedx
 }
 
 main "$@"
